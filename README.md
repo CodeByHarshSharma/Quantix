@@ -31,38 +31,6 @@ A Perplexity-style AI chat app built with the MERN stack. Streams AI responses i
 - Tavily API key
 - SMTP credentials
 
-### Installation
-
-```bash
-git clone <your-repo-url>
-cd quantix
-npm install
-
-cd <frontend-folder>
-npm install
-```
-
-### Environment Variables
-
-Create a `.env` file in the backend root:
-
-```env
-PORT=3000
-NODE_ENV=development
-
-MONGO_URI=mongodb://localhost:27017/quantix
-JWT_SECRET=your-secret
-
-SERVER_URL=http://localhost:3000
-FRONTEND_URL=http://localhost:5173
-
-GEMINI_API_KEY=your-gemini-key
-TAVILY_API_KEY=your-tavily-key
-
-EMAIL_USER=you@example.com
-EMAIL_PASS=your-app-password
-```
-
 ### Run Locally
 
 Start the backend and frontend in separate terminals using `npm run dev` in each directory.
