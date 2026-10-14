@@ -21,24 +21,47 @@ const agent = createAgent({
     tools: [searchInternetTool]
 })
 
-export async function generateMessage(message) {
-    const response = await agent.invoke({
-        messages: [
-            new SystemMessage(`
-                You are a helpful and precise assistant for answering questions.
-                If you don't know the answer, say you currently dont have an answer for that
-                If the question requires up-to-date information , use the "searchInternet" tool to get latest information from the internet and then answer based on the search results.`),
-            ...(message.map(msg => {
-            if (msg.role == "User") {
-                return new HumanMessage(msg.content)
-            }
-            else if (msg.role == 'AI') {
-                return new AIMessage(msg.content)
-            }
-        }))]
-    })
+const SYSTEM_PROMPT = `
+        You are a helpful and precise assistant for answering questions.
+        If you don't know the answer, say you currently dont have an answer for that
+        If the question requires up-to-date information , use the "searchInternet" tool to get latest information from the internet and then answer based on the search results.`
 
-    return response.messages[ response.messages.length - 1].text
+function toLangchainMessage(messages) {
+    return [
+        new SystemMessage(SYSTEM_PROMPT),
+        ...messages
+            .filter(msg => msg.role === "User" || msg.role === "AI")
+            .map(msg => msg.role === "User"
+                ? new HumanMessage(msg.content)
+                : new AIMessage(msg.content))
+    ]
+}
+
+const isAIChunk = (m) => (m?.getType?.() ?? m?._getType?.()) === "ai"
+
+export async function generateMessage(messages) {
+    const response = await agent.invoke({
+        messages: toLangchainMessage(messages)
+    })
+    return response.messages[response.messages.length - 1].text
+}
+
+export async function streamMessage(messages, { onToken, onToolStart, signal } = {}) {
+    const stream = await agent.stream(
+        { messages: toLangchainMessage(messages) },
+        { streamMode: "messages", signal }
+    )
+
+    for await (const [chunk] of stream) {
+        if (!isAIChunk(chunk)) continue
+
+        for (const tc of chunk.tool_call_chunks ?? []) {
+            if (tc.name) onToolStart?.(tc.name)
+        }
+
+        const text = chunk.text
+        if (text) onToken?.(text)
+    }
 }
 
 export async function generateChatTitle(message) {
@@ -53,6 +76,6 @@ export async function generateChatTitle(message) {
             "${message}"`)
     ])
 
-    return response.text
+    return response.text.trim().replace(/^["']|["']$/g, "")
 
 }

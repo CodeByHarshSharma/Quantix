@@ -1,6 +1,7 @@
 import { useDispatch } from "react-redux";
-import { register, login, getMe, resendVerification } from "../service/auth.api";
+import { register, login, getMe, resendVerification, logout } from "../service/auth.api";
 import { setUser, setLoading, setError } from "../auth.slice";
+import { resetChat } from "../../chat/chat.slice";
 
 export function useAuth() {
 
@@ -62,7 +63,20 @@ export function useAuth() {
         }
     }
 
+    async function handleLogout(){
+        try{
+            await logout()
+            dispatch(setUser(null))
+            dispatch(setError(null))
+            dispatch(resetChat())
+        }
+        catch(error){
+            dispatch(setError(error.response?.data?.message || "Logout failed"))
+            throw error
+        }
+    }
+
     return{
-        handleRegister, handleLogin, handleGetMe, handleResendVerification
+        handleRegister, handleLogin, handleGetMe, handleResendVerification, handleLogout
     }
 }

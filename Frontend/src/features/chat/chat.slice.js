@@ -1,15 +1,16 @@
 import { createSlice } from '@reduxjs/toolkit';
 import { createLocalId } from './service/id.js';
 
+const initialState = {
+    chats: {},
+    currentChatId: null,
+    isLoading: false,
+    error: null
+}
 
 const chatSlice = createSlice({
     name: 'chat',
-    initialState: {
-        chats: {},
-        currentChatId: null,
-        isLoading: false,
-        error: null
-    },
+    initialState,
     reducers: {
         createNewChat: (state, action) => {
             const { chatId, title } = action.payload
@@ -27,15 +28,33 @@ const chatSlice = createSlice({
                 id,
                 content: '',
                 role: 'AI',
-                isPending: true
+                isPending: true,
+                isStreaming: false,
+                status: null
             })
+        },
+        appendPendingToken: (state, action) => {
+            const { chatId, id, token } = action.payload
+            const message = state.chats[chatId]?.messages.find(m => m.id === id)
+            if (!message) return
+            message.content += token
+            message.isPending = false
+            message.isStreaming = true
+            message.status = null
+        },
+        setPendingStatus: (state, action) => {
+            const { chatId, id, status } = action.payload
+            const message = state.chats[chatId]?.messages.find(m => m.id === id)
+            if (message) message.status = status
         },
         resolvePendingMessage: (state, action) => {
             const { chatId, id, content } = action.payload
             const message = state.chats[chatId]?.messages.find(m => m.id === id)
             if (message) {
-                message.content = content
+                if (content != undefined) message.content = content
                 message.isPending = false
+                message.isStreaming = false
+                message.status = null
             }
         },
         failPendingMessage: (state, action) => {
@@ -92,7 +111,8 @@ const chatSlice = createSlice({
         },
         setError: (state, action) => {
             state.error = action.payload
-        }
+        },
+        resetChat: () => initialState,
     }
 })
 
@@ -100,6 +120,8 @@ const chatSlice = createSlice({
 export const {
     createNewChat,
     addPendingMessage,
+    appendPendingToken,
+    setPendingStatus,
     resolvePendingMessage,
     failPendingMessage,
     replaceChatId,
@@ -110,5 +132,6 @@ export const {
     setChats,
     setCurrentChatId,
     setLoading,
-    setError } = chatSlice.actions
+    setError,
+    resetChat } = chatSlice.actions
 export default chatSlice.reducer

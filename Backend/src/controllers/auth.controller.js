@@ -1,9 +1,16 @@
 import userModel from "../models/user.model.js";
 import jwt from 'jsonwebtoken';
 import { sendEmail } from "../services/mail.service.js";
+import { cookie } from "express-validator";
 
 const SERVER_URL = process.env.SERVER_URL || "http://localhost:3000"
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173"
+
+const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+}
 
 async function sendVerificationEmail(user) {
 
@@ -46,11 +53,11 @@ export async function register(req, res) {
         password
     })
 
-    try{
+    try {
 
         await sendVerificationEmail(user)
     }
-    catch(err){
+    catch (err) {
         console.error("Failed to send verification email:", err)
     }
 
@@ -146,13 +153,11 @@ export async function login(req, res) {
     const token = jwt.sign({
         id: user._id,
         username: user.username
-    }, process.env.JWT_SECRET, { expiresIn: "7d" })
+    }, process.env.JWT_SECRET, { expiresIn: "7d" },)
 
     res.cookie('token', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        maxAge: 7 * 24 * 60 * 60 * 1000 // matches your JWT's 7d expiry
+        ...cookieOptions,
+        maxAge: 7 * 24 * 60 * 60 * 1000
     })
 
     res.status(200).json({
@@ -225,5 +230,14 @@ export async function getMe(req, res) {
         message: "User details fetched successfully",
         success: true,
         user
+    })
+}
+
+export async function logout(req, res) {
+    res.clearCookie('token', cookieOptions)
+
+    res.status(200).json({
+        message: "User logged out successfully",
+        success: true
     })
 }

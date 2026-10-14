@@ -472,9 +472,36 @@ body {
 }
 
 .sidebar-note {
-  margin-top: auto;
-  padding-top: 24px;
+  padding-top: 12px;
   font-size: 12px;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 16px;
+}
+
+.logout-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ff6b6b;
+  border-radius: 10px;
+  background: transparent;
+  color: #ff8f8f;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color .2s ease, color .2s ease;
+}
+
+.logout-button:hover {
+  background: #ff6b6b;
+  color: var(--canvas);
 }
 
 .chat-main {
@@ -635,6 +662,29 @@ body {
   max-width: 440px;
   color: var(--muted);
   line-height: 1.6;
+}
+
+.pending-state {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.message-status {
+  display: inline-block;
+  font-size: 0.8rem;
+  opacity: 0.65;
+  font-style: italic;
+}
+
+.markdown-body.is-streaming > :last-child::after {
+  content: '▍';
+  margin-left: 2px;
+  animation: stream-cursor 1s steps(1) infinite;
+}
+
+@keyframes stream-cursor {
+  50% { opacity: 0; }
 }
 
 .markdown-para {

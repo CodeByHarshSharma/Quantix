@@ -1,15 +1,20 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useSelector } from 'react-redux'
+import { useNavigate } from 'react-router'
 import { useChat } from '../hooks/useChat.js'
+import { useAuth } from '../../auth/hook/useAuth.js'
+import { disconnectSocket } from '../service/chat.socket.js'
 import '../styles/chat.css'
 
 const Dashboard = () => {
 
+  const messageEndRef = useRef(null)
   const chat = useChat()
+  const { handleLogout } = useAuth()
+  const navigate = useNavigate()
   const [chatInput, setChatInput] = useState('')
-  const [useMessage, setUserMessage] = useState('')
   const [renamingId, setRenamingId] = useState(null)
   const [renameValue, setRenameValue] = useState('')
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -18,21 +23,32 @@ const Dashboard = () => {
   const currentChatId = useSelector((state) => state.chat.currentChatId)
   const currentChat = chats[currentChatId]
 
+  const activeMessage = currentChat?.messages.find(m => m.isPending || m.isStreaming)
+  const isGenerating = Boolean(activeMessage)
+
   useEffect(() => {
-    chat.initializeSocketConnection(),
-      chat.handleGetChats()
+    chat.initializeSocketConnection()
+    chat.handleGetChats()
   }, [])
+
+  const lastContent = currentChat?.messages.at(-1)?.content
+
+  useEffect(() => {
+    messageEndRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'end'
+    })
+  }, [currentChat?.messages.length, lastContent]);
 
   const handleSubmitMessage = (e) => {
     e.preventDefault()
 
     const trimmedMessage = chatInput.trim()
-    if (!trimmedMessage) {
+    if (!trimmedMessage || isGenerating) {
       return
     }
 
     chat.handleSendMessage({ message: trimmedMessage, chatId: currentChatId })
-    setUserMessage(trimmedMessage)
     setChatInput('')
   }
 
@@ -63,6 +79,22 @@ const Dashboard = () => {
   const openChat = (chatId) => {
     setIsSidebarOpen(false)
     chat.handleOpenChats(chatId, chats)
+  }
+
+  const stopGenerating = () => {
+    if(activeMessage) chat.handleStopMessage(activeMessage.id)
+  }
+
+  const signOut = async () => {
+    if (!window.confirm('Log out of Quantix?')) return
+    try {
+      await handleLogout()
+      disconnectSocket()
+      navigate('/login')
+    }
+    catch (error) {
+      // auth slice already holds the error message
+    }
   }
 
   return (
@@ -136,7 +168,16 @@ const Dashboard = () => {
             ))}
             {!Object.keys(chats).length && <p className="empty-chats">Your conversations will appear here.</p>}
           </div>
-          <p className="sidebar-note">Answers powered by your AI workspace.</p>
+          <div className="sidebar-footer">
+            <button
+              className='logout-button'
+              onClick={signOut}
+              type='button'
+              aria-label='Log out'>
+              <span aria-hidden="true">⏻</span><span>Log out</span>
+            </button>
+            <p className="sidebar-note">Answers powered by your AI workspace.</p>
+          </div>
         </aside>
 
         {isSidebarOpen && (
@@ -173,24 +214,32 @@ const Dashboard = () => {
                 key={message.id}
                 className={`message ${message.role === "User" ? "message-user" : "message-assistant"}`}>
                 {message.isPending ? (
-                  <span className='typing-dots'><i /><i /><i /></span>
+                  <div className="pending-state">
+                    <span className='typing-dots'><i /><i /><i /></span>
+                    {message.status && <span className='message-status'>{message.status}</span>}
+                  </div>
                 ) : message.role === 'User' ? (
                   <p>{message.content}</p>
                 ) : (
-                  <ReactMarkdown
-                    components={{
-                      p: ({ children }) => <p className='markdown-para'>{children}</p>,
-                      ul: ({ children }) => <ul className='markdown-ul'>{children}</ul>,
-                      ol: ({ children }) => <ol className='markdown-ol'>{children}</ol>,
-                      code: ({ children }) => <code className='markdown-code'>{children}</code>,
-                      pre: ({ children }) => <pre className='markdown-pre'>{children}</pre>
-                    }}
-                    remarkPlugins={[remarkGfm]}>
-                    {message.content}
-                  </ReactMarkdown>
+                  <div className={`markdown-body ${message.isStreaming ? 'is-streaming' : ''}`}>
+
+                    <ReactMarkdown
+                      components={{
+                        p: ({ children }) => <p className='markdown-para'>{children}</p>,
+                        ul: ({ children }) => <ul className='markdown-ul'>{children}</ul>,
+                        ol: ({ children }) => <ol className='markdown-ol'>{children}</ol>,
+                        code: ({ children }) => <code className='markdown-code'>{children}</code>,
+                        pre: ({ children }) => <pre className='markdown-pre'>{children}</pre>
+                      }}
+                      remarkPlugins={[remarkGfm]}>
+                      {message.content}
+                    </ReactMarkdown>
+                    {message.status && <span className='message-status'>{message.status}</span>}
+                  </div>
                 )}
               </div>
             ))}
+            <div ref={messageEndRef} />
           </div>
 
           <footer className='chat-footer'>
@@ -202,9 +251,15 @@ const Dashboard = () => {
                 placeholder='Message Quantix...'
                 className='chat-input' />
 
-              <button type='submit' disabled={!chatInput.trim()} className='chat-send-button'>
-                <span>Send</span><span aria-hidden="true"></span>
-              </button>
+              {isGenerating ? (
+                <button type='button' onClick={stopGenerating} className='chat-send-button chat-stop-button'>
+                  <span>Stop</span>
+                </button>
+              ) : (
+                <button type='submit' disabled={!chatInput.trim()} className='chat-send-button'>
+                  <span>Send</span><span aria-hidden="true"></span>
+                </button>
+              )}
             </form>
             <p className="input-hint">Press Enter to send</p>
           </footer>
