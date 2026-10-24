@@ -46,10 +46,3 @@ LangChain agents use Tavily for web search when needed. Socket.IO events handle 
 Express serves the built frontend from the `public` folder, allowing the frontend, API, and Socket.IO connection to share one origin.
 
 Configure production environment variables on your hosting platform and use HTTPS for secure authentication cookies.
-
-## Roadmap
-
-- Smoother response streaming
-- Token revocation on logout
-- Source citations for web searches
-- Regenerate and edit messages
