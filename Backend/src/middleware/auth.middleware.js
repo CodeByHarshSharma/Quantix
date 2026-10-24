@@ -1,6 +1,8 @@
 import jwt from 'jsonwebtoken';
+import { isTokenBlacklisted } from '../services/tokenBlacklist.js';
+import { success } from 'zod';
 
-export function authUser(req, res, next) {
+export async function authUser(req, res, next) {
     const token = req.cookies.token;
 
     if(!token){
@@ -13,6 +15,14 @@ export function authUser(req, res, next) {
 
     try{
         const decoded = jwt.verify(token, process.env.JWT_SECRET)
+
+        if(await isTokenBlacklisted(token)) {
+            return res.status(401).json({
+                message: "Unauthorized access!",
+                success: false,
+                err: "Token revoked"
+            })
+        }
 
         req.user = decoded
 

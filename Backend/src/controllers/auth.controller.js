@@ -1,7 +1,8 @@
 import userModel from "../models/user.model.js";
 import jwt from 'jsonwebtoken';
 import { sendEmail } from "../services/mail.service.js";
-import { cookie } from "express-validator";
+import { blacklistToken } from "../services/tokenBlacklist.js";
+import { disconnectSocketByToken } from "../sockets/server.socket.js";
 
 const SERVER_URL = process.env.SERVER_URL || "http://localhost:3000"
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173"
@@ -234,6 +235,20 @@ export async function getMe(req, res) {
 }
 
 export async function logout(req, res) {
+
+    const token = req.cookies.token
+
+    if(token) {
+        disconnectSocketByToken(token)
+
+        try{
+            const { exp } = jwt.verify(token, process.env.JWT_SECRET)
+            await blacklistToken(token, exp)
+        }
+        catch(err){
+            console.error("Logout blacklist skipped:", err.message)
+        }
+    }
     res.clearCookie('token', cookieOptions)
 
     res.status(200).json({

@@ -1,6 +1,7 @@
 import { Server } from 'socket.io'
 import jwt from 'jsonwebtoken'
 import { registerChatHandlers } from './chat.socket.js'
+import { isTokenBlacklisted } from '../services/tokenBlacklist.js';
 
 let io;
 
@@ -20,13 +21,19 @@ export function initSocket(httpServer) {
         }
     })
 
-    io.use((socket, next) => {
+    io.use(async (socket, next) => {
         try {
             const token = getCookie(socket.handshake.headers.cookie, "token")
             if (!token) return next(new Error("Unauthorized"))
 
             const decoded = jwt.verify(token, process.env.JWT_SECRET)
+
+            if (await isTokenBlacklisted(token)) {
+                return next(new Error("Unauthorized"))
+            }
+
             socket.user = decoded
+            socket.data.token = token
             next()
         }
         catch {
@@ -40,6 +47,13 @@ export function initSocket(httpServer) {
     })
 
     console.log("Socket io server is running...")
+}
+
+export function disconnectSocketByToken(token) {
+    if (!io) return
+    for (const s of io.sockets.sockets.values()) {
+        if (s.data.token === token) s.disconnect(true)
+    }
 }
 
 export function getIO() {
