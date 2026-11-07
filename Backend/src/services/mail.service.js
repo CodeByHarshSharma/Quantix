@@ -1,38 +1,33 @@
-import nodemailer from 'nodemailer';
-import dns from 'node:dns';
+import { google, oauth2_v2 } from 'googleapis';
+import MailComposer from 'nodemailer/lib/mail-composer/index.js';
 
-dns.setDefaultResultOrder('ipv4first')
+const auth = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET
+)
 
-const transport = nodemailer.createTransport({
-    
-    service: 'gmail',
-    auth: {
-        type: 'OAuth2',
-        user: process.env.GOOGLE_USER,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        refreshToken: process.env.GOOGLE_REFRESH_TOKEN,
-        clientId: process.env.GOOGLE_CLIENT_ID
-    }
+auth.setCredentials({
+    refresh_token: process.env.GOOGLE_REFRESH_TOKEN
 })
 
-transport.verify()
-    .then(() => {
-        console.log("Email transporter is ready to send emails")
-    })
-    .catch((error) => {
-        console.error("Email transporter verification failed:", error)
-    })
-
+const gmail = google.gmail({
+    version: 'v1', auth 
+})
 
 export async function sendEmail({ to, subject, html, text }) {
-    const mailOptions = {
+    const message = await new MailComposer({
         from: process.env.GOOGLE_USER,
         to,
         subject,
         html,
         text
-    }
+    }).compile().build();
 
-    const details = await transport.sendMail(mailOptions)
-    console.log("Email sent:", details)
+    const res = await gmail.users.messages.send({
+        userId: 'me',
+        requestBody: {
+            raw: message.toString('base64url')
+        }
+    })
+    console.log("Email sent:", res.data.id)
 }
