@@ -179,7 +179,7 @@ export async function verifyEmail(req, res) {
     const redirectToApp = (status, email) => {
         const params = new URLSearchParams({ status })
         if (email) params.set('email', email)
-        return res.redirect(`${FRONTEND_URL}/verify-email?${params.toString()}`)
+        return res.redirect(`https://quantix-xz3p.onrender.com/verify-email?${params.toString()}`)
     }
 
     try {

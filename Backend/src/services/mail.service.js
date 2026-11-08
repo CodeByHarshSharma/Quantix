@@ -1,4 +1,4 @@
-import { google, oauth2_v2 } from 'googleapis';
+import { google } from 'googleapis';
 import MailComposer from 'nodemailer/lib/mail-composer/index.js';
 
 const auth = new google.auth.OAuth2(
